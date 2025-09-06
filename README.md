@@ -1,6 +1,6 @@
 # HTTPFeeder
 
-HTTPFeeder is a powerful HTTP traffic tool that processes captured HTTP traffic and mirrors it to user-defined HTTP proxies such as Burp Suite. Acting as an intermediary, it mirrors HTTP requests and responses, making them visible and fully inspectable in your chosen proxy tool.
+HTTPFeeder is a HTTP traffic tool that processes captured HTTP traffic and mirrors it to user-defined HTTP proxies such as Burp Suite. Acting as an intermediary, it mirrors HTTP requests and responses, making them visible and fully inspectable in your chosen proxy tool.
 
 ## Overview
 
@@ -13,18 +13,6 @@ HTTPFeeder creates a bridge between captured network traffic and HTTP analysis t
 - **Proxy Integration**: Seamlessly forwards traffic to tools like Burp Suite, OWASP ZAP, or custom proxies
 - **Multiple HTTP Versions**: Supports HTTP 0.9, 1.0, 1.1, and 2 protocols (HTTP/3 is in the works)
 - **Flexible Architecture**: Configurable hostnames and ports for different network setups
-
-## Architecture
-
-### Realtime TCP Server Mode
-```
-ecapture -> :8079 (HTTPFeeder TCP server) -> :8080 (Burp Suite HTTP proxy) -> :8081 (HTTPFeeder intermediary HTTP proxy)
-```
-
-### PCAP/EK Reader Mode  
-```
-HTTPFeeder PCAP reader -> :8080 (Burp Suite HTTP proxy) -> :8081 (HTTPFeeder intermediary HTTP proxy)
-```
 
 ## Installation
 
@@ -77,6 +65,12 @@ Optional Arguments:
 ### Mode Details
 
 #### Realtime Mode
+
+##### Architecture
+```
+ecapture -> :8079 (HTTPFeeder TCP server) -> :8080 (Burp Suite HTTP proxy) -> :8081 (HTTPFeeder intermediary HTTP proxy)
+```
+
 Starts a TCP server that eCapture can connect to for live traffic mirroring:
 ```bash
 python httpfeeder.py -m realtime -p http://127.0.0.1:8080
@@ -88,14 +82,20 @@ Use with eCapture:
 ```
 
 #### PCAP Mode
+
+##### Architecture
+```
+HTTPFeeder PCAP reader -> :8080 (Burp Suite HTTP proxy) -> :8081 (HTTPFeeder intermediary HTTP proxy)
+```
+
 Analyzes existing PcapNG files that have been converted to EK format:
 ```bash
 python httpfeeder.py -m pcap -p http://127.0.0.1:8080 -f http_output.ek
 ```
 
-##### Creating EK Files from PCAP
+##### Creating EK Files from PcapNG
 
-Convert PcapNG files to the required EK format using tshark:
+Extract HTTP packets from the PcapNG file and convert it to the required EK format using tshark:
 ```bash
 tshark -r ecapture.pcapng -Y "http or http2 or quic" -T ek > http_output.ek
 ```
@@ -105,11 +105,11 @@ tshark -r ecapture.pcapng -Y "http or http2 or quic" -T ek > http_output.ek
 ### Basic Realtime Analysis with Burp Suite
 
 1. Start your HTTP proxy tool (e.g., Burp Suite) on port 8080 and configure it to use HTTPFeeder's intermediary proxy (default: 127.0.0.1:8081) as an HTTP upstream proxy (e.g., Burp -> Settings -> Network -> Connections -> Upstream Proxy Servers)
-2. Run HTTPFeeder in realtime mode:
+2. Run HTTPFeeder in realtime mode (it will spin up a TCP server on port 0.0.0.0:8079 by default):
 ```bash
 python httpfeeder.py -m realtime -p http://127.0.0.1:8080
 ```
-4. Start eCapture with the event address pointing to HTTPFeeder:
+3. Start eCapture with the event address pointing to HTTPFeeder:
 ```bash
 ./ecapture tls -m text --eventaddr=tcp://127.0.0.1:8079
 ```
@@ -120,12 +120,12 @@ python httpfeeder.py -m realtime -p http://127.0.0.1:8080
 ```bash
 ./ecapture tls -m pcap -i wlan0 --pcapfile=capture.pcapng
 ```
-1. Convert the PcapNG file to EK format:
+2. Extract HTTP packets from the PcapNG file and convert it to EK format:
 ```bash
 tshark -r capture.pcapng -Y "http or http2 or quic" -T ek > http_traffic.ek
 ```
-2. Start your HTTP proxy tool (e.g., Burp Suite) on port 8080 and configure it to use HTTPFeeder's intermediary proxy (default: 127.0.0.1:8081) as an HTTP upstream proxy (e.g., Burp -> Settings -> Network -> Connections -> Upstream Proxy Servers)
-3. Run HTTPFeeder in PCAP mode and specify the EK file:
+3. Start your HTTP proxy tool (e.g., Burp Suite) on port 8080 and configure it to use HTTPFeeder's intermediary proxy (default: 127.0.0.1:8081) as an HTTP upstream proxy (e.g., Burp -> Settings -> Network -> Connections -> Upstream Proxy Servers)
+4. Run HTTPFeeder in PCAP mode and specify the EK file:
 ```bash
 python httpfeeder.py -m pcap -p http://127.0.0.1:8080 -f http_traffic.ek
 ```
@@ -151,10 +151,6 @@ python httpfeeder.py \
 - **Target Proxy**: 8080 (your HTTP proxy tool (e.g., Burp Suite))
 - **Intermediary Proxy**: 8081 (HTTPFeeder's Man-in-the-Middle proxy)
 
-### Verbose Logging
-- `-v`: Enables debug logging for general operations
-- `-vv`: Enables debug logging for HTTP interception details
-
 ## Troubleshooting
 
 ### Common Issues
@@ -165,13 +161,6 @@ python httpfeeder.py \
 **Connection refused errors**
 - Verify that your target proxy (e.g., Burp Suite) is running and listening on the specified port
 - Check that the specified hostnames and ports are accessible
-
-### Debug Mode
-
-Use verbose and very verbose flags to troubleshoot issues:
-```bash
-python httpfeeder.py -m realtime -p http://127.0.0.1:8080 -vv
-```
 
 ## Integration with other tools
 
